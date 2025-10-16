@@ -1,0 +1,33 @@
+from pydantic import BaseModel, Field, field_validator
+from pydantic import UUID4
+from datetime import datetime
+from uuid import uuid4
+
+class CreateMessageBase(BaseModel):
+    user_uuid: UUID4
+    chat_id: int
+    text: str = Field(min_length=1,max_length=1000)
+    answer_to: int | None = None
+    react: int = 0
+    is_bot: bool = False
+
+class ReadMessageBase(CreateMessageBase):
+    id: int
+    local_id: int
+    created_at: datetime
+
+
+class ReactionBase(BaseModel):
+    message_id: int
+    react: int
+    @field_validator("react")
+    async def validate_react(cls, v):
+        if v not in range(-1, 1 + 1, 1):
+            raise ValueError("react must be between -1 and 1")
+        return v
+
+class CreateChatBase(BaseModel):
+    user_uuid: UUID4 = Field(default_factory=uuid4)
+    class Config:
+        orm_mode = True
+
