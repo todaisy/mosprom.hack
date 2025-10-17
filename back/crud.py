@@ -5,6 +5,16 @@ from uuid import UUID
 from typing import Optional, List
 
 # GET
+async def get_last_message_from_chat(db: AsyncSession, chat_id: int) -> Optional[Message]:
+    result = await db.execute(
+        select(Message)
+        .where(Message.chat_id == chat_id)
+        .order_by(Message.local_id.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def get_last_message_local_id(db: AsyncSession,
                                     chat_id) -> Optional[int]:
     result = await db.execute(
@@ -17,10 +27,13 @@ async def get_last_message_local_id(db: AsyncSession,
 
 async def get_n_last_messages_from_chat(db: AsyncSession,
                                         chat_id: int,
+                                        skip: int,
                                         n: int)->List[Message]:
+
     result = await db.execute(select(Message)
                               .where(Message.chat_id == chat_id)
                               .order_by(Message.created_at.desc())
+                              .offset(skip)
                               .limit(n))
     messages = result.scalars().all()
     return list(reversed(messages))
