@@ -14,17 +14,22 @@ class User(Base):
         default=uuid.uuid4,
         nullable=False,
     )
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
-
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(),
+                                                 nullable=False)
 
 class Chat(Base):
     __tablename__ = "chats"
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, nullable=False)
-    title: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    id: Mapped[int] = mapped_column(primary_key=True,
+                                    autoincrement=True,
+                                    nullable=False)
+    title: Mapped[str] = mapped_column(String(64),
+                                       nullable=False,
+                                       default="")
     user_uuid: Mapped[uuid.UUID] = mapped_column(postgresql.UUID(as_uuid=True),
                                                  ForeignKey("users.uuid", ondelete="CASCADE"),
                                                  nullable=False)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(),
+                                                 nullable=False)
 
 
 class Message(Base):

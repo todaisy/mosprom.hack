@@ -8,13 +8,13 @@ class CreateMessageBase(BaseModel):
     chat_id: int
     text: str = Field(min_length=1,max_length=1000)
     answer_to: int | None = None
-    react: int = 0
     is_bot: bool = False
 
 class ReadMessageBase(CreateMessageBase):
     id: int
     local_id: int
     created_at: datetime
+    react: int = 0
 
 
 class ReactionBase(BaseModel):
