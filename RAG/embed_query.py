@@ -9,7 +9,7 @@ import warnings
 warnings.filterwarnings("ignore", message="Some weights of.*were not initialized")
 
 # Загрузка модели и токенизатора
-model_path = "models/ru-en-RoSBERTa"
+model_path = "/home/user/ru-en-RoSBERTa"
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModel.from_pretrained(model_path)
 model.eval()
