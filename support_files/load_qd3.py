@@ -164,16 +164,18 @@ def iter_json_records(path: Path) -> Iterable[Dict[str, Any]]:
 
 
 def is_valid_record(doc: Dict[str, Any]) -> bool:
-    """Проверка на пустой или технический документ."""
     text = clean_text(doc.get("text", "")).lower()
     title = (doc.get("title") or "").strip()
+    valid = True
     if not text or len(text) < 50:
-        return False
+        valid = False
     if text in {"текст не найден", "нет текста"}:
-        return False
+        valid = False
     if title == "Без заголовка":
-        return False
-    return True
+        valid = False
+    log.info(f"is_valid_record: title='{title}', text_len={len(text)}, valid={valid}")
+    return valid
+
 
 
 def add_documents(
@@ -201,6 +203,7 @@ def add_documents(
 
         doc_id = (doc.get(id_field) or f"doc-{uuid.uuid4()}") if id_field else f"doc-{uuid.uuid4()}"
         chunks = make_chunks(full_text)
+        log.info(f"Document {doc_id}: {len(chunks)} chunks created")
         vectors = get_embeddings_local(chunks)
 
         payload_base = {k: doc.get(k) for k in meta_fields if k in doc}
