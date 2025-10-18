@@ -178,3 +178,8 @@ def normalise_query(query: str, termins: dict) -> str:
         out = prefix + body
 
     return out
+
+if __name__ == "__main__":
+    test_query = "Превет как откркуть ФЗ223?"
+    result = normalise_query(test_query, TERMINS)
+    print("Результат нормализации:", result)
