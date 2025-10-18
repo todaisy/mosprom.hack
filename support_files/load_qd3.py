@@ -44,7 +44,7 @@ FILE_GLOB = "*.json"
 
 # ---------- МОДЕЛЬ и Токенизатор ----------
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = 'cpu'
 tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL_PATH)
 model = AutoModel.from_pretrained(EMBEDDING_MODEL_PATH).to(device)
 model.eval()
