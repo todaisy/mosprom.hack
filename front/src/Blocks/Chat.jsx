@@ -1,9 +1,9 @@
 import React, {useState, useEffect} from "react";
 import ChatMessage from "./ChatMessage.jsx";
 
-const Chat = ({chatMessages, setMessageForAnswer, reactMessage}) => {
+const Chat = ({chatMessages, setMessageForAnswer, reactMessage, generatingMessage}) => {
     return (
-        <div>
+        <div className="chat">
             {chatMessages.map((message, index) => (
                 <ChatMessage
                     key={index}
@@ -14,6 +14,13 @@ const Chat = ({chatMessages, setMessageForAnswer, reactMessage}) => {
                     reactMessage={reactMessage}
                 />
             ))}
+            {generatingMessage && <ChatMessage
+                message={"Генерация..."}
+                answeredMessage={undefined}
+                isMain={false}
+                setMessageForAnswer={setMessageForAnswer}
+                reactMessage={reactMessage}
+            />}
         </div>
     );
 };

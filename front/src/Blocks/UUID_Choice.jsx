@@ -7,13 +7,13 @@ const UUID_Choice = () => {
     const navigate = useNavigate();
 
  
-    const api_adress = "";
+    const api_adress = "127.0.0.1:8000";
 
     useEffect(() => {
         const createUser = async () => {
             try {
                 const responce = axios.post(`http://${api_adress}/create-user`, {});
-                setUser_uuid(responce.data.user_uuid);
+                setUser_uuid(responce.user_uuid);
                 navigate(`/${User_uuid.trim()}`);
             } catch (err) {
                 alert(err.message)

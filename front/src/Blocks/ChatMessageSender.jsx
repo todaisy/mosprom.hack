@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from "react";
 import ChatMessage from "./ChatMessage.jsx";
 
-const ChatMessageSender = ({SendMessage, setMessageForAnswer, messageForAnswer}) => {
+const ChatMessageSender = ({SendMessage, setMessageForAnswer, messageForAnswer, generatingMessage}) => {
     const [message, setMessage] = useState();
 
     const handleSubmit = async (e) => {
@@ -10,8 +10,8 @@ const ChatMessageSender = ({SendMessage, setMessageForAnswer, messageForAnswer})
     }
 
     return (
-        <div>
-            {(messageForAnswer.message_id != -1) && <div>
+        <div className="chatMessageSender">
+            {(messageForAnswer.message_id != -1) && <div className="chatMessageSenderAnsweredMessageContainer">
                 <ChatMessage
                     message={messageForAnswer}
                     answeredMessage={{message_id: -1}}
@@ -19,7 +19,7 @@ const ChatMessageSender = ({SendMessage, setMessageForAnswer, messageForAnswer})
                 />
                 <button onClick={() => {setMessageForAnswer({message_id: -1})}}>Отменить</button>
             </div>}
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="chatMessageSenderForm">
                 <input
                     id = "message"
                     type="text"
@@ -28,7 +28,7 @@ const ChatMessageSender = ({SendMessage, setMessageForAnswer, messageForAnswer})
                     placeholder="Написать чат-боту поддержки"
                     required
                 />
-                <button type="submit">Написать</button>
+                <button type="submit" disabled={generatingMessage}>Написать</button>
             </form>
         </div>
     );

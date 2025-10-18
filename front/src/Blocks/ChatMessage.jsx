@@ -3,7 +3,7 @@ import React, {useState, useEffect} from "react";
 const ChatMessage = ({message, answeredMessage, isMain, setMessageForAnswer, reactMessage}) => {
 
     return (
-        <div>
+        <div className={`ChatMessage ${isMain ? "main" : "notMain"} ${message.is_bot ? "bot" : "notBot" }`}>
             {isMain && answeredMessage && (
                 <ChatMessage
                     message={answeredMessage}
