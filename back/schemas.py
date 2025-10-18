@@ -26,9 +26,10 @@ class ReactionBase(BaseModel):
             raise ValueError("react must be between -1 and 1")
         return v
 
+class CreateLLMMessageBase(BaseModel):
+    chat_id: int
+
 class CreateChatBase(BaseModel):
     user_uuid: UUID4 = Field(default_factory=uuid4)
     class Config:
         from_attributes = True
-
-

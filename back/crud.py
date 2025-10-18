@@ -1,10 +1,19 @@
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete
 from models import *
 from uuid import UUID
-from typing import Optional, List
+from typing import Optional, List, AsyncGenerator
+
 
 # GET
+async def get_chat_state(db: AsyncSession,
+                         chat_id: int):
+    result = await db.execute(select(Chat.is_generate)
+                    .where(Chat.id == chat_id))
+    state = result.scalar_one_or_none()
+    return state
+
 async def get_last_message_from_chat(db: AsyncSession, chat_id: int) -> Optional[Message]:
     result = await db.execute(
         select(Message)
@@ -25,7 +34,7 @@ async def get_last_message_local_id(db: AsyncSession,
     )
     return result.scalar_one_or_none()
 
-async def get_n_last_messages_from_chat(db: AsyncSession,
+async def get_n_messages_from_chat(db: AsyncSession,
                                         chat_id: int,
                                         skip: int,
                                         n: int)->List[Message]:
@@ -100,6 +109,17 @@ async def update_react(db: AsyncSession,
     setattr(message, 'react', react)
     await db.flush()
     return message
+
+async def update_is_generated_chat(db: AsyncSession,
+                          chat_id: int,
+                          new_state: bool) -> Optional[Chat]:
+    result = await db.execute(select(Chat).where(Chat.id == chat_id))
+    chat = result.scalar_one_or_none()
+    if not chat:
+        raise ValueError(f"Chat {chat_id} not found")
+    setattr(chat, 'is_generate', new_state)
+    await db.flush()
+    return chat
 
 # ATHER
 async def commit_changes(db: AsyncSession):

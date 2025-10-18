@@ -31,6 +31,7 @@ class Chat(Base):
                                                  nullable=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(),
                                                  nullable=False)
+    is_generate: Mapped[bool] = mapped_column(default=False)
 
 
 class Message(Base):
