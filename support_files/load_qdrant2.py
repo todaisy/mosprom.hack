@@ -21,6 +21,7 @@ from qdrant_client.http.exceptions import UnexpectedResponse
 
 # ---------- ЛОГИРОВАНИЕ ----------
 logging.basicConfig(
+    filename="ingest.log",
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
