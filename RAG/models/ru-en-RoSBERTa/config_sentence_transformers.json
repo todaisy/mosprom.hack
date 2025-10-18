@@ -1,0 +1,18 @@
+{
+  "prompts": {
+    "query": "",
+    "document": "",
+    "classification": "classification: ",
+    "search_query": "search_query: ",
+    "search_document": "search_document: ",
+    "clustering": "clustering: "
+  },
+  "default_prompt_name": null,
+  "similarity_fn_name": "cosine",
+  "model_type": "SentenceTransformer",
+  "__version__": {
+    "sentence_transformers": "5.1.1",
+    "transformers": "4.57.1",
+    "pytorch": "2.9.0+cpu"
+  }
+}

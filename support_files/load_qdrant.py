@@ -3,16 +3,59 @@ import os, json, uuid, hashlib
 from pathlib import Path
 from typing import List, Dict, Any, Iterable, Optional, Union
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct
 from qdrant_client.http.exceptions import UnexpectedResponse
 
+# --- УДАЛИ эти строки ---
+# from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+# --- ДОБАВЬ вместо них ---
+# универсальный сплиттер: сначала пытаемся взять из langchain, иначе локальный
+try:
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+    def make_chunks(long_text: str) -> list[str]:
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=CHUNK_SIZE,
+            chunk_overlap=CHUNK_OVERLAP,
+            separators=SEPARATORS
+        )
+        return splitter.split_text(long_text or "")
+except Exception:
+    import re
+    def make_chunks(long_text: str) -> list[str]:
+        text = (long_text or "").strip()
+        if not text:
+            return []
+        parts = [text]
+        for sep in SEPARATORS:
+            new_parts = []
+            for p in parts:
+                new_parts.extend([s for s in p.split(sep) if s])
+            parts = new_parts
+        chunks, buf = [], ""
+        for piece in parts:
+            piece = piece.strip()
+            if not piece:
+                continue
+            if len(buf) + len(piece) + 1 <= CHUNK_SIZE:
+                buf = (buf + " " + piece).strip()
+            else:
+                if buf:
+                    chunks.append(buf)
+                buf = ((chunks[-1][-CHUNK_OVERLAP:] if chunks else "") + " " + piece).strip()
+                while len(buf) > CHUNK_SIZE:
+                    chunks.append(buf[:CHUNK_SIZE])
+                    buf = buf[CHUNK_SIZE-CHUNK_OVERLAP:]
+        if buf:
+            chunks.append(buf)
+        return chunks
 # ---------- Настройки ----------
 
-EMBEDDING_MODEL_NAME = "/home/user/ru-en-RoSBERTa/"
+#EMBEDDING_MODEL_NAME = "/home/user/ru-en-RoSBERTa/"
+EMBEDDING_MODEL_NAME = os.getenv("EMB_MODEL", "models/ru-en-RoSBERTa")
 
 CHUNK_SIZE = 1200         # символов (~200–350 токенов для RU)
 VECTOR_SIZE = 1024

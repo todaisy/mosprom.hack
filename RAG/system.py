@@ -1,121 +1,109 @@
-import os, sys, json, re, uuid
-from typing import Optional
+import os, sys, re, uuid
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from typing import List, Dict
+from qdrant_client import QdrantClient
 
-#логгер
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-try:
-    from back.logging_config import logger
-except Exception as e:
-    import logging
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger("rag")
-    logger.warning(f"Fallback logger: cannot import back.logging_config: {e}")
+import sys, os
 
-#безопасность
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+from back.logging_config import logger
+
+# берём функции и конфиг из вашего загрузчика
+from support_files.load_qdrant import get_embeddings_local, QDRANT_HOST, QDRANT_PORT, COLLECTION_NAME
+
 MIN_THRESHOLD = 0.70
-DEFAULT_THRESHOLD = float(os.getenv("THRESHOLD", "0.75"))
-DEFAULT_THRESHOLD = max(DEFAULT_THRESHOLD, MIN_THRESHOLD)
+DEFAULT_THRESHOLD = max(float(os.getenv("THRESHOLD", "0.75")), MIN_THRESHOLD)
 TOP_K_DEFAULT = int(os.getenv("TOP_K", "5"))
 MAX_TOP_K = 10
 
-TOXIC_PATTERNS = [
-    r"\b(идиот|дурак|туп(ой|ица)|сука|бл(я|)(т|д)|мразь|ненавижу|убью)\b",
-    r"расстрел|угрожаю|повеш",
-]
-TOXIC_RE = re.compile("|".join(TOXIC_PATTERNS), re.IGNORECASE)
+TOXIC_RE = re.compile(r"\b(идиот|дурак|туп(ой|ица)|сука|бл(я|)(т|д)|мразь|ненавижу|убью)\b|расстрел|угрожаю|повеш",
+                      re.I)
+INJ_RE = re.compile(r"(ignore previous|игнорируй предыдущее|system prompt|curl|http://|https://)", re.I)
 
-INJECTION_RE = re.compile(
-    r"(игнорируй предыдущее|ignore previous|системный промпт|system prompt|"
-    r"выполни команду|execute|curl|powershell|http://|https://)",
-    re.IGNORECASE
-)
+client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+COLL = os.getenv("QDRANT_COLLECTION", COLLECTION_NAME)
 
-#данные
-docs = []
-kb_path = os.path.join(PROJECT_ROOT, "data", "ingest.ndjson")
-try:
-    with open(kb_path, encoding="utf-8") as f:
-        for line in f:
-            try:
-                d = json.loads(line)
-                if (d.get("text") or "").strip():
-                    docs.append(d)
-            except Exception as e:
-                logger.error(f"Bad NDJSON line: {e}")
-except FileNotFoundError:
-    logger.error(f"KB file not found: {kb_path}")
+app = FastAPI(title="RAG via Qdrant (RoSBERTa)")
 
-if not docs:
-    logger.error("KB is empty — /rag/select will return 503")
-
-def build_index(items):
-    texts = [it["text"] for it in items]
-    vec = TfidfVectorizer(analyzer="word", ngram_range=(1,2), min_df=1).fit(texts)
-    mat = vec.transform(texts)
-    return vec, mat
-
-IDX_ALL = build_index(docs) if docs else None
-
-# FastAPI
-app = FastAPI(title="rag-select-tfidf (secure, no domains)")
 
 class Req(BaseModel):
     text: str
     top_k: int = TOP_K_DEFAULT
     threshold: float = DEFAULT_THRESHOLD
 
-@app.middleware("http")
-async def request_id_mw(request: Request, call_next):
-    rid = request.headers.get("X-Request-ID") or str(uuid.uuid4())
-    request.state.req_id = rid
-    logger.info(f"[{rid}] RAG -> {request.url.path}")
-    try:
-        resp = await call_next(request)
-        logger.info(f"[{rid}] RAG <- {request.url.path} {resp.status_code}")
-        return resp
-    except Exception as e:
-        logger.error(f"[{rid}] RAG unhandled error: {e}")
-        raise
+
+def sanitize(text: str) -> str:
+    t = INJ_RE.sub(" ", text or "")
+    return re.sub(r"\s+", " ", t).strip()
+
 
 @app.get("/health")
 def health():
-    return {"ok": True, "docs": len(docs)}
+    try:
+        info = client.get_collection(COLL)
+        return {"ok": True, "collection": COLL, "vectors": info.vectors_count}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
-def is_toxic(text: str) -> bool:
-    return bool(TOXIC_RE.search(text or ""))
-
-def sanitize_query(text: str) -> str:
-    cleaned = INJECTION_RE.sub(" ", text or "")
-    return re.sub(r"\s+", " ", cleaned).strip()
-
-def search(text: str, top_k: int):
-    if not IDX_ALL:
-        raise HTTPException(503, "KB index is empty")
-    vec, mat = IDX_ALL
-    qv = vec.transform([text])
-    sims = cosine_similarity(qv, mat).ravel()
-    ranked = sorted(enumerate(sims), key=lambda x: x[1], reverse=True)[:top_k]
-    return [
-        {
-            "source": docs[i].get("source_path") or f"idx:{i}",
-            "snippet": docs[i]["text"],
-            "score": float(s)
-        }
-        for i, s in ranked
-    ]
 
 @app.post("/rag/select")
 def select(a: Req, request: Request):
-    rid = getattr(request.state, "req_id", "-")
+    rid = request.headers.get("X-Request-ID") or str(uuid.uuid4())
 
-    if is_toxic(a.text):
-        logger.warning(f"[{rid}] toxic query rejected")
-        raise HTTPException(400, "Запрос содержит токсичную лексику и отклонён политикой использования.")
+    if TOXIC_RE.search(a.text or ""):
+        raise HTTPException(400, "Токсичный запрос отклонён.")
 
-    cleaned = sanitize_query(a.text)
+    q = sanitize(a.text)
+    if not q:
+        raise HTTPException(400, "Пустой запрос.")
+
+    top_k = min(max(1, a.top_k), MAX_TOP_K)
+    thr = max(a.threshold, MIN_THRESHOLD)
+
+    try:
+        qvec = get_embeddings_local(q, mode="query")  # вектор запроса
+        res = client.search(
+            collection_name=COLL,
+            query_vector=qvec,
+            limit=top_k,
+            score_threshold=thr,
+            with_payload=True,
+            with_vectors=False,
+        )
+
+        cands = [{
+            "source": r.payload.get("url") or r.payload.get("doc_id") or str(r.id),
+            "snippet": r.payload.get("text", ""),
+            "score": float(r.score)
+        } for r in res]
+
+        if not cands:  # запасной поиск без порога
+            res2 = client.search(collection_name=COLL, query_vector=qvec, limit=top_k, with_payload=True)
+            cands = [{
+                "source": r.payload.get("url") or r.payload.get("doc_id") or str(r.id),
+                "snippet": r.payload.get("text", ""),
+                "score": float(r.score)
+            } for r in res2]
+
+        max_score = max([c["score"] for c in cands], default=0.0)
+        eligible = [c for c in cands if c["score"] >= thr]
+        passed = bool(max_score >= thr)
+        coverage = round(len(eligible) / max(1, top_k), 2)
+
+    except Exception as e:
+        logger.error(f"[{rid}] Qdrant search error: {e}")
+        raise HTTPException(500, "Ошибка поиска в Qdrant")
+
+    logger.info(f"[{rid}] top_k={top_k} thr={thr} max={round(max_score, 3)} passed={passed}")
+    return {
+        "query": q,
+        "top_k": top_k,
+        "threshold": thr,
+        "candidates": cands,
+        "eligible_contexts": eligible,
+        "max_score": round(max_score, 3),
+        "coverage": coverage,
+        "passed": passed
+    }
