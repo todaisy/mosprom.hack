@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 # ---------- НАСТРОЙКИ ----------
 
-EMBEDDING_MODEL_NAME = "/home/user/ru-en-RoSBERTa/"
+EMBEDDING_MODEL_NAME = os.path.expanduser("~/ai_models/ru-en-RoSBERTa/")
 
 CHUNK_SIZE = 1200
 CHUNK_OVERLAP = 200
