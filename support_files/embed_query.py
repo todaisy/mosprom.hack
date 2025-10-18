@@ -1,16 +1,17 @@
-# embed_query.py
-
+import os, sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 import torch
 from transformers import AutoTokenizer, AutoModel
 import numpy as np
-from normalize_query import normalise_query, TERMINS
+from RAG.normalize_query import normalise_query, TERMINS
 import warnings
 
 # Подавляем предупреждения о неинициализированных весах
 warnings.filterwarnings("ignore", message="Some weights of.*were not initialized")
 
 # Загрузка модели и токенизатора
-model_path = "/home/user/ru-en-RoSBERTa/"
+model_path = "../RAG/models/ru-en-RoSBERTa"
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModel.from_pretrained(model_path)
 model.eval()
