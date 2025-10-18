@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import  AsyncSession
 from db import get_db
 
@@ -103,8 +103,9 @@ async def update_react_endpoint(reaction: ReactionBase,db: AsyncSession = Depend
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+    print("!!!!!", updated_message,"!!!!!!!!")
     if not updated_message:
-        raise HTTPException(status_code=404, detail="Message not found")
+        raise HTTPException(status_code=404, detail=f"Message not found, updated message = {updated_message}")
 
     await commit_changes(db=db)
     return {"status": "ok", "message_id": updated_message.id}

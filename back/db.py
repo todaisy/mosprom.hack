@@ -3,6 +3,16 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+import os
+from pathlib import Path
+
+env_path = Path(__file__).resolve().parent.parent / ".env"
+print("🔍 Ищу .env по пути:", env_path)
+load_dotenv(dotenv_path=env_path)
+
+print("📦 DATABASE_URL =", os.getenv("DATABASE_URL"))
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
