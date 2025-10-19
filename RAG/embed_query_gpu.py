@@ -8,33 +8,34 @@ import warnings
 # Подавляем предупреждения о неинициализированных весах
 warnings.filterwarnings("ignore", message="Some weights of.*were not initialized")
 
-# Определяем устройство
+# ✅ Определяем устройство
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"✅ Используется устройство: {device}")
 if device.type == "cuda":
     print(f"GPU: {torch.cuda.get_device_name(0)}")
 
-# Загружаем модель и токенизатор
-model_path = "root/ai_models/ru-en-RoSBERTa"
-tokenizer = AutoTokenizer.from_pretrained(model_path)
-model = AutoModel.from_pretrained(model_path)
+# ✅ Правильный путь к локальной модели (без 'root/' в начале)
+model_path = "/root/ai_models/ru-en-RoSBERTa"
 
-# Переводим модель на GPU и включаем half precision для ускорения
+# ✅ Загружаем токенизатор и модель с указанием локального пути
+tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
+model = AutoModel.from_pretrained(model_path, local_files_only=True)
+
+# ✅ Переводим модель на GPU, включаем half precision и eval
 if device.type == "cuda":
-    model = model.half()
-model = model.to(device)
+    model = model.to(device).half()
+else:
+    model = model.to(device)
 model.eval()
 
-# Функция получения эмбеддингов для батча текстов
+# 🔹 Функция получения эмбеддингов
 def get_embeddings(texts, remove_prefix=True):
-    # Убираем префиксы при необходимости
     processed_texts = []
     for text in texts:
         if remove_prefix and text.startswith("search_query:"):
             text = text[len("search_query:"):].strip()
         processed_texts.append(text)
 
-    # Токенизация
     inputs = tokenizer(
         processed_texts,
         padding=True,
@@ -43,7 +44,6 @@ def get_embeddings(texts, remove_prefix=True):
         max_length=512
     ).to(device)
 
-    # Вычисление эмбеддингов
     with torch.no_grad():
         outputs = model(**inputs)
         embeddings = outputs.last_hidden_state[:, 0, :]  # [CLS] токен
@@ -51,12 +51,11 @@ def get_embeddings(texts, remove_prefix=True):
 
     return embeddings.cpu().numpy()
 
-# Обработка списка запросов
+# 🔹 Обработка списка запросов
 def process_queries(queries, termins=TERMINS, batch_size=8):
     results = []
     normalized_queries = [normalise_query(q, termins) for q in queries]
 
-    # Обрабатываем по батчам
     for i in range(0, len(normalized_queries), batch_size):
         batch = normalized_queries[i:i+batch_size]
         batch_embeddings = get_embeddings(batch)
@@ -71,13 +70,11 @@ def process_queries(queries, termins=TERMINS, batch_size=8):
             })
     return results
 
-# Пример использования
+# 🔹 Пример использования
 if __name__ == "__main__":
     test_queries = [
         "Как оформить ЭДО для 44 фз и использовать ЛК оператора?",
-        "Какие требования к электронной подписи по 223-ФЗ?",
-        "Как подать жалобу в ФАС по 44-ФЗ?",
-        "Инструкция по работе с ЕИС для начинающих"
+        "Какие требования к электронной подписи по 223-ФЗ?"
     ]
 
     results = process_queries(test_queries)
@@ -89,7 +86,7 @@ if __name__ == "__main__":
         print(f"Размерность эмбеддинга: {result['embedding_shape']}")
         print(f"Норма эмбеддинга: {result['embedding_norm']:.4f}")
 
-    # Сравнение схожести
+    # 🔹 Сравнение схожести
     from sklearn.metrics.pairwise import cosine_similarity
 
     print("\n--- Сравнение эмбеддингов ---")
